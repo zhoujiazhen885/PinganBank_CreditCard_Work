@@ -2,13 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-2017-8-23 V2.2 Adding the feather of every system can use this python program
-               Jiazhen Zhou , Danyang Jiangsu.
-2017-9-11 V3.0 Adding the feather of searching the dividing logs, like pafa.log.1, pafa.log.2...etc
-               Jiazhen Zhou , Pudong Shanghai.
-2017-9-12 V3.1 Adding the feather of handling the KeyboardInterrupt events during multiprocessing process.
-               Jiazhen Zhou , pudong Shanghai.
-2017-9-14 V3.2 Changing the muliprocessing model to mulithreading model.
+
+2017-9-15 V1.0 Creating the function of seraching logs on 10.1.183.83.
                Jiazhen Zhou , Pudong Shanghai.
 """
 
