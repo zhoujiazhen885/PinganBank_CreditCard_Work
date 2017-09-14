@@ -11,29 +11,30 @@
 2017-9-14 V3.2 Changing the muliprocessing model to mulithreading model.
                Jiazhen Zhou , Pudong Shanghai.
 """
-import os
+
 import subprocess
 import sys
 import time
 import threading
 
 
-# 获取用户输入
+# get the user's input ,including system's name ,componentName ,date and keyword.
 def getInputWords():
-    systemName = raw_input("Please input the system's name:").lower().replace('-','_')
+    systemName = raw_input("Please input the system's name:").lower().replace('-', '_')
     componentName = raw_input("Please input the componentName or the host IP, if you want to search all the hosts please input 'ALL':").upper()
+    d = raw_input("Please input the logs producing date,and it should be 'mmdd' format like '0706': ")
     keyWord = raw_input("Please input the key word:")
-    return componentName, keyWord, systemName
+    return componentName, keyWord, systemName, d
 
 
 # 根据用户输入，读取配置文件，输出IP和日志文件路径
 def exportConf(componentName, systemName):
     # checking if the system's config has been existed!
     systemName = systemName + '.conf'
-    confName = '/wls/bankdplyop/tools/getlog/conf/'+systemName
-    checkConfFile = subprocess.Popen("cat %s" % confName,shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    confName = '/wls/bankdplyop/tools/getlog/conf/' + systemName
+    checkConfFile = subprocess.Popen("cat %s" % confName, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     f = checkConfFile.stdout.read()
-    #判断配置文件是否存在
+    # 判断配置文件是否存在
     if f:
         pass
     else:
@@ -79,8 +80,8 @@ def exportConf(componentName, systemName):
     # 按组件查找
     else:
         dict1 = {}
-        ssh1 = subprocess.Popen("grep %s %s" % (componentName, confName),
-                                shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ssh1 = subprocess.Popen("grep %s %s" % (componentName, confName), shell=True, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
         f = ssh1.stdout.read()
         f = f.split(':')[1]
         f = f.split(',')
@@ -90,13 +91,14 @@ def exportConf(componentName, systemName):
             dict1[ip] = logFile
         return dict1
 
+
 # the function of searching log
 def searchLog(ip, searchLogFile, keyWord, systemName, i):
-    #replace the /n problem
-    searchLogFile = searchLogFile.replace('\n','')
+    # replace the /n problem
+    searchLogFile = searchLogFile.replace('\n', '')
     start = time.time()
-    print (time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())),"begin")
-#    print 'The children process %s is searching  the log %s on the %s .' % (os.getpid(), searchLogFile, ip)
+    print (time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), "begin")
+    #    print 'The children process %s is searching  the log %s on the %s .' % (os.getpid(), searchLogFile, ip)
     print  'The %s thread is searching  the log %s on the %s .' % (i, searchLogFile, ip)
     # the temp log name is "systemName-ip.temp"
     templog = tempLogDir + systemName + '-' + ip + '.temp'
@@ -105,37 +107,42 @@ def searchLog(ip, searchLogFile, keyWord, systemName, i):
 
     values1 = (systemName, ip, keyWord, searchLogFile)
     ssh2 = subprocess.Popen(
-        "export DEPLOY_PASSWORD=deploy;deploytool dremotecmd -s %s -i %s 'grep -n %s %s '" % values1,
-        shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        "export DEPLOY_PASSWORD=deploy;deploytool dremotecmd -s %s -i %s 'grep -n %s %s '" % values1, shell=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     f = ssh2.stdout.read()
     fError = ssh2.stderr.read()
     templogWrite.write(f)
 
-    for n in range(1,200):
+    for n in range(1, 200):
         searchLogFile1 = searchLogFile + '.' + str(n)
         print searchLogFile1
-        ssh4 = subprocess.Popen("export DEPLOY_PASSWORD=deploy;deploytool dremotecmd -s %s -i %s 'head  %s' " % (systemName, ip, searchLogFile1), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ssh4 = subprocess.Popen("export DEPLOY_PASSWORD=deploy;deploytool dremotecmd -s %s -i %s 'head  %s' " % (
+        systemName, ip, searchLogFile1), shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         f2 = ssh4.stdout.read()
-        #checking if the log.* is exsited
+        # checking if the log.* is exsited
         if "�޷���" not in f2:
-#            print f2
-#            print 'The children process %s is searching  the log %s on the %s .' % (os.getpid(), searchLogFile1, ip)
+            #            print f2
+            #            print 'The children process %s is searching  the log %s on the %s .' % (os.getpid(), searchLogFile1, ip)
             print 'Thread %s is searching  the log %s on the %s .' % (i, searchLogFile1, ip)
             values2 = (systemName, ip, keyWord, searchLogFile1)
-            ssh5 = subprocess.Popen("export DEPLOY_PASSWORD=deploy;deploytool dremotecmd -s %s -i %s 'grep -n %s %s '" % values2,shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            ssh5 = subprocess.Popen(
+                "export DEPLOY_PASSWORD=deploy;deploytool dremotecmd -s %s -i %s 'grep -n %s %s '" % values2,
+                shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             f = ssh5.stdout.read()
             templogWrite.write(f)
-#            searchLogFile1 = searchLogFile
+        # searchLogFile1 = searchLogFile
         else:
-#            print "The child process %s can't find the %s!" % (os.getpid(), searchLogFile1)
+            #            print "The child process %s can't find the %s!" % (os.getpid(), searchLogFile1)
             print "Thread %s can't find the %s!" % (i, searchLogFile1)
-            #exit the for loop
-            break    
-            
+            # exit the for loop
+            break
+
     templogWrite.close()
     end = time.time()
-#    print 'Process %s runs %0.2f seconds, and the templog is %s.' % (os.getpid(), (end - start), templog)
+    #    print 'Process %s runs %0.2f seconds, and the templog is %s.' % (os.getpid(), (end - start), templog)
     print 'Thread %s runs %0.2f seconds, and the templog is %s.' % (i, (end - start), templog)
+
+
 # 清理临时日志，并整合成一个整体日志
 def collectLog():
     # 整合后的日志文件名
@@ -158,12 +165,13 @@ def collectLog():
             # 临时日志文件绝对路径
             tempLogFile = tempLogDir + x
             # 将临时日志的文件内容整合到一个日志文件中
-            ssh4 = subprocess.Popen("cat %s >> %s; rm %s"  % (tempLogFile, logFile, tempLogFile), shell=True, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
-#            ssh5 = subprocess.Popen("rm %s" % tempLogFile, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            ssh4 = subprocess.Popen("cat %s >> %s; rm %s" % (tempLogFile, logFile, tempLogFile), shell=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # ssh5 = subprocess.Popen("rm %s" % tempLogFile, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             pass
     print "All logs have been written to the file %s !" % logFile
+
 
 if __name__ == '__main__':
     # 日志文件名目录
@@ -172,9 +180,8 @@ if __name__ == '__main__':
     componentName, keyWord, systemName = getInputWords()
     print systemName, componentName, keyWord
 
-
-        # 配置文件目录
-#    conf = '/wls/bankdplyop/tools/getlog/conf/icss_cccs_csi.conf'
+    # 配置文件目录
+    #    conf = '/wls/bankdplyop/tools/getlog/conf/icss_cccs_csi.conf'
 
 
     # 输出要查找的IP和日志文件目录
@@ -183,26 +190,26 @@ if __name__ == '__main__':
     n = len(dictIpLogfile)
     print 'Total number is %s' % n
     # 利用多进程查找日志
-#    print 'Parent process %s.' % os.getpid()
-#    p = Pool(12)
+    #    print 'Parent process %s.' % os.getpid()
+    #    p = Pool(12)
     threadpros = []
     listIpLogfile = dictIpLogfile.items()
     for i in range(n):
         l = listIpLogfile[i]
-#            results = p.apply_async(searchLog, args=(l[0], l[1], keyWord, systemName))
-        t = threading.Thread(target=searchLog, args=(l[0], l[1], keyWord, systemName,i))
+        #            results = p.apply_async(searchLog, args=(l[0], l[1], keyWord, systemName))
+        t = threading.Thread(target=searchLog, args=(l[0], l[1], keyWord, systemName, i))
         threadpros.append(t)
     for i in range(n):
         threadpros[i].start()
     for i in range(n):
         threadpros[i].join()
-#    except KeyboardInterrupt:
-#        t.terminate()
-#        print "You cancelled the program!"
-#        sys.exit(1)
-#    print 'Waiting for all subprocesses done...'
-#    p.close()
-#    p.join()
+    # except KeyboardInterrupt:
+    #        t.terminate()
+    #        print "You cancelled the program!"
+    #        sys.exit(1)
+    #    print 'Waiting for all subprocesses done...'
+    #    p.close()
+    #    p.join()
     print 'All threads has done.'
     # 清理临时日志，并整合成一个完整的日志
     collectLog()
